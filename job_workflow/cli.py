@@ -1,10 +1,12 @@
 ﻿from __future__ import annotations
 
 import argparse
+import os
 import hashlib
 import importlib
 import inspect
 import json
+from pathlib import Path
 import pathlib
 import sqlite3
 import sys
@@ -705,6 +707,39 @@ def cmd_run_sources(args: argparse.Namespace) -> int:
     return 0
 
 
+from job_workflow.cli_extensions_snippet import (
+    run_notify_approved,
+    run_sync_sheets,
+)
+
+
+def cmd_notify_approved(args: argparse.Namespace) -> int:
+    result = run_notify_approved(
+        data_dir=Path(args.data_dir),
+        recipient=args.to,
+        force=args.force,
+    )
+    print(json.dumps(result, indent=2))
+    return 0
+
+
+def cmd_sync_sheets(args: argparse.Namespace) -> int:
+    if not args.credentials or not args.spreadsheet_id:
+        print(
+            "Missing --credentials / GOOGLE_SHEETS_CREDENTIALS or --spreadsheet-id / GOOGLE_SHEETS_ID",
+            file=sys.stderr,
+        )
+        return 2
+    result = run_sync_sheets(
+        data_dir=Path(args.data_dir),
+        credentials_path=args.credentials,
+        spreadsheet_id=args.spreadsheet_id,
+        worksheet_name=args.worksheet,
+    )
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build argument parser for the job-workflow CLI."""
     parser = argparse.ArgumentParser(prog="job-workflow", description="Durable Job-Search Workflow CLI")
@@ -780,6 +815,42 @@ def build_parser() -> argparse.ArgumentParser:
     run_sources_parser.add_argument("--model", default=None, help="Model name override")
     run_sources_parser.set_defaults(func=cmd_run_sources)
 
+    notify_parser = subparsers.add_parser(
+        "notify-approved",
+        help="Send approved job digest via email",
+    )
+    notify_parser.add_argument(
+        "--to",
+        default=os.environ.get("NOTIFY_EMAIL_TO", "getgad.uss@gmail.com"),
+        help="Recipient email address",
+    )
+    notify_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Send even if digest hash matches last sent email",
+    )
+    notify_parser.set_defaults(func=cmd_notify_approved)
+
+    sheets_parser = subparsers.add_parser(
+        "sync-sheets",
+        help="Sync approved application packets to Google Sheets",
+    )
+    sheets_parser.add_argument(
+        "--credentials",
+        default=os.environ.get("GOOGLE_SHEETS_CREDENTIALS", ""),
+        help="Path to Google service account JSON credentials",
+    )
+    sheets_parser.add_argument(
+        "--spreadsheet-id",
+        default=os.environ.get("GOOGLE_SHEETS_ID", ""),
+        help="Target Google Sheets spreadsheet ID",
+    )
+    sheets_parser.add_argument(
+        "--worksheet",
+        default=os.environ.get("GOOGLE_SHEETS_WORKSHEET", "Sheet1"),
+        help="Target worksheet name",
+    )
+    sheets_parser.set_defaults(func=cmd_sync_sheets)
     return parser
 
 

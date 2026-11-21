@@ -228,3 +228,62 @@ def test_cli_export_approved_json_and_md(tmp_path: Path, capsys) -> None:
     md_text = out_md.read_text(encoding="utf-8")
     assert "Approved Systems Co - Workflow Systems Engineer" in md_text
     assert cid in md_text
+def test_cli_notify_approved_and_deduplicate(tmp_path: Path, capsys) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "approved_digest.md").write_text("# Digest\n\n- Role A\n", encoding="utf-8")
+
+    with patch("job_workflow.cli_extensions_snippet.send_approved_digest_email") as mock_send:
+        rc1 = main(["--data-dir", str(data_dir), "notify-approved", "--to", "getgad.uss@gmail.com"])
+        out1 = capsys.readouterr().out
+        rc2 = main(["--data-dir", str(data_dir), "notify-approved", "--to", "getgad.uss@gmail.com"])
+        out2 = capsys.readouterr().out
+
+    assert rc1 == 0
+    assert rc2 == 0
+    assert '"status": "sent"' in out1
+    assert '"status": "duplicate_skipped"' in out2
+    assert mock_send.call_count == 1
+
+
+def test_cli_sync_sheets_requires_config_and_syncs(tmp_path: Path, capsys) -> None:
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "approved_packets.json").write_text(
+        json.dumps([
+            {
+                "company": "Vanguard AI",
+                "title": "Applied AI Systems Engineer",
+                "casefile_id": "cf-1",
+                "location": "Remote",
+                "fit_score": 82.0,
+                "fit_label": "STRONG_APPLY",
+                "url": "https://example.com/role",
+                "tailored_summary": "Summary",
+                "resume_bullets": ["B1"],
+                "outreach_draft": "Hi",
+            }
+        ]),
+        encoding="utf-8",
+    )
+
+    rc_missing = main(["--data-dir", str(data_dir), "sync-sheets", "--credentials", "", "--spreadsheet-id", ""])
+    assert rc_missing == 2
+
+    with patch("job_workflow.cli_extensions_snippet.sync_approved_rows_to_sheet") as mock_sync:
+        rc_ok = main([
+            "--data-dir",
+            str(data_dir),
+            "sync-sheets",
+            "--credentials",
+            "creds.json",
+            "--spreadsheet-id",
+            "sheet-id-1",
+            "--worksheet",
+            "Sheet1",
+        ])
+        out_ok = capsys.readouterr().out
+
+    assert rc_ok == 0
+    assert '"status": "synced"' in out_ok
+    mock_sync.assert_called_once()
