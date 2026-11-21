@@ -9,7 +9,13 @@ def sync_approved_rows_to_sheet(
     worksheet_name: str,
     rows: list[list[Any]],
 ) -> None:
-    import gspread  # type: ignore[import-not-found]
+    try:
+        import gspread
+        from gspread.utils import ValueInputOption
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "gspread is required for sync-sheets. Install it with: pip install gspread"
+        ) from exc
 
     client = gspread.service_account(filename=credentials_path)
     sheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
@@ -27,4 +33,4 @@ def sync_approved_rows_to_sheet(
         'Status',
     ]
     sheet.clear()
-    sheet.update([headers, *rows], value_input_option='USER_ENTERED')
+    sheet.update([headers, *rows], value_input_option=ValueInputOption.user_entered)
