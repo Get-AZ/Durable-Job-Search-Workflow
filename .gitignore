@@ -8,3 +8,7 @@ data/
 *.db-wal
 *.db-shm
 data/notification_state.json
+
+.env.ps1
+
+data/scheduled_run.log
