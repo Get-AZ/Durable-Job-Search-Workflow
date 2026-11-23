@@ -665,6 +665,8 @@ def cmd_run_sources(args: argparse.Namespace) -> int:
     raw_sources = json.loads(sources_file.read_text(encoding="utf-8"))
     sources_list = raw_sources if isinstance(raw_sources, list) else []
     sources_mod = importlib.import_module("job_workflow.sources")
+    budget_cls = getattr(sources_mod, "RunBudgetTracker")
+    budget = budget_cls()
     combined_records: list[dict[str, Any]] = []
 
     for entry in sources_list:
@@ -679,7 +681,7 @@ def cmd_run_sources(args: argparse.Namespace) -> int:
                 cfg.get("board_token"),
                 company_name=company,
             )
-            combined_records.extend(_posting_to_dict(p, company_override=company) for p in src.fetch_postings())
+            combined_records.extend(_posting_to_dict(p, company_override=company) for p in src.fetch_postings(budget))
         elif src_type == "lever":
             lv_cls = getattr(sources_mod, "LeverBoardSource")
             src = _construct_source(
@@ -688,7 +690,7 @@ def cmd_run_sources(args: argparse.Namespace) -> int:
                 cfg.get("site"),
                 company_name=company,
             )
-            combined_records.extend(_posting_to_dict(p, company_override=company) for p in src.fetch_postings())
+            combined_records.extend(_posting_to_dict(p, company_override=company) for p in src.fetch_postings(budget))
 
     merged_jobs_file = data_dir / "combined_sources_jobs.json"
     merged_jobs_file.parent.mkdir(parents=True, exist_ok=True)
