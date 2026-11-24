@@ -1,5 +1,7 @@
 # Durable Job-Search Workflow
 
+![Durable Job-Search Workflow — persistent state, crash recovery, and human approval](https://getamesay-ml-cloud-ai.getgad-uss.chatgpt.site/assets/durable-job-search-workflow.png)
+
 Deterministic job-search ingestion, evaluation, and application-packet pipeline built with SQLite WAL persistence, idempotent step execution, lease-based crash recovery, strict Pydantic schema validation, and human-in-the-loop approval gates.
 
 ## Core Architecture
